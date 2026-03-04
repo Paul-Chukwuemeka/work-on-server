@@ -24,24 +24,56 @@ def readTask():
     list = json.loads(file.read_text()) # read content from file into list
     return list
 
-  
+def check_id(id,tasks):
+    found = any(task.get("id") == id for task in tasks)
+    return found
+
 server = FastAPI()
 
+
+
 @server.get("/")
-def get_task(tasks = Depends(readTask)):
+def get_task(tasks:List = Depends(readTask)):
     return tasks
 
+@server.get("/{id}")
+def get_task_by_id(id:int,response: Response,tasks = Depends(readTask)):
+    found = check_id(id,tasks)
+    if not found:
+        response.status_code = 404
+        return "task not found"
+    return tasks[id - 1]
 
 @server.post("/add")
 def add_task(new_task: NewTask,tasks:List = Depends(readTask)):
-    tasks.append(dict(new_task,id=len(tasks) + 1 ))
+    last = tasks[len(tasks) - 1]["id"] if len(tasks) >= 1 else 0
+    tasks.append(dict(new_task,id= last + 1 ))
     write_to_file(tasks)
     return tasks
     
 
+@server.put("/update/{id}")
+def update_task(id:int,response: Response,new_task: NewTask,tasks:List = Depends(readTask)):
+    found = check_id(id,tasks)
+    if not found:
+        response.status_code = 404
+        return "task not found"
+    tasks[id - 1] = dict(new_task,id = id)
+    write_to_file(tasks)
+    return tasks
 
-
-
+@server.delete("/delete/{id}")
+def delete_task(id:int,response: Response,tasks:List = Depends(readTask)):
+    found = check_id(id,tasks)
+    if not found:
+        response.status_code = 404
+        return "task not found"
+    
+    for i,task in enumerate(tasks):
+        if task["id"] == id:
+            tasks.pop(i)
+    write_to_file(tasks) 
+    return tasks
 
 
 # users =[
@@ -94,4 +126,4 @@ def add_task(new_task: NewTask,tasks:List = Depends(readTask)):
 
 # @server.post("/health")
 # def health_Checker():
-#     return {"name":"Joseph Benin Man from post"}
+#    return {"name":"Joseph Benin Man from post"}
