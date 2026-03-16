@@ -1,79 +1,154 @@
-from fastapi import FastAPI,Response,Depends
+from fastapi import FastAPI,Response,Depends,HTTPException
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import Optional,List
 from pydantic import BaseModel,Field
 from pathlib import Path
 import json
+from lib.database import engine,get_db
+from models.tasksModel import Base, Task
+from routes import tasks_routes,user_routes,auth_routes
+from fastapi.middleware.cors import CORSMiddleware
 
-class NewTask(BaseModel):
-    name: str
 
-file = Path("db.json")
-# create file to store tasks
-def checkFile(): #check if file exists and create if not
-    
-    if not file.exists(): #if file doesnt exist
-        file.touch() #create file
-        file.write_text(json.dumps([])) # place an empty array in file
-checkFile()
-
-def write_to_file(tasks):
-    print(tasks)
-    file.write_text(json.dumps(tasks))
-
-def readTask():
-    list = json.loads(file.read_text()) # read content from file into list
-    return list
-
-def check_id(id,tasks):
-    found = any(task.get("id") == id for task in tasks)
-    return found
+Base.metadata.create_all(bind=engine)
 
 server = FastAPI()
 
 
+server.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@server.get("/")
-def get_task(tasks:List = Depends(readTask)):
-    return tasks
+class TaskItem(BaseModel):
+    name: str
+    
+class UpdateItem(BaseModel):
+    title:Optional[str] = None
+    completed:Optional[bool] = None
 
-@server.get("/{id}")
-def get_task_by_id(id:int,response: Response,tasks = Depends(readTask)):
-    found = check_id(id,tasks)
-    if not found:
-        response.status_code = 404
-        return "task not found"
-    return tasks[id - 1]
+@server.get("/health")
+def check_health(response: Response):
+    response.status_code = 200
+    return {"message": "Server is healthy"}
 
-@server.post("/add")
-def add_task(new_task: NewTask,tasks:List = Depends(readTask)):
-    last = tasks[len(tasks) - 1]["id"] if len(tasks) >= 1 else 0
-    tasks.append(dict(new_task,id= last + 1 ))
-    write_to_file(tasks)
-    return tasks
+
+server.include_router(tasks_routes.router)
+server.include_router(user_routes.router)
+server.include_router(auth_routes.router)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# class NewTask(BaseModel):
+#     name: str
+
+# file = Path("db.json")
+# # create file to store tasks
+# def checkFile(): #check if file exists and create if not
+    
+#     if not file.exists(): #if file doesnt exist
+#         file.touch() #create file
+#         file.write_text(json.dumps([])) # place an empty array in file
+# checkFile()
+
+# def write_to_file(tasks):
+#     print(tasks)
+#     file.write_text(json.dumps(tasks))
+
+# def readTask():
+#     list = json.loads(file.read_text()) # read content from file into list
+#     return list
+
+# def check_id(id,tasks):
+#     found = any(task.get("id") == id for task in tasks)
+#     return found
+
+
+
+
+# @server.get("/")
+# def get_task(tasks:List = Depends(readTask)):
+#     return tasks
+
+# @server.get("/{id}")
+# def get_task_by_id(id:int,response: Response,tasks = Depends(readTask)):
+#     found = check_id(id,tasks)
+#     if not found:
+#         response.status_code = 404
+#         return "task not found"
+#     return tasks[id - 1]
+
+# @server.post("/add")
+# def add_task(new_task: NewTask,tasks:List = Depends(readTask)):
+#     last = tasks[len(tasks) - 1]["id"] if len(tasks) >= 1 else 0
+#     tasks.append(dict(new_task,id= last + 1 ))
+#     write_to_file(tasks)
+#     return tasks
     
 
-@server.put("/update/{id}")
-def update_task(id:int,response: Response,new_task: NewTask,tasks:List = Depends(readTask)):
-    found = check_id(id,tasks)
-    if not found:
-        response.status_code = 404
-        return "task not found"
-    tasks[id - 1] = dict(new_task,id = id)
-    write_to_file(tasks)
-    return tasks
+# @server.put("/update/{id}")
+# def update_task(id:int,response: Response,new_task: NewTask,tasks:List = Depends(readTask)):
+#     found = check_id(id,tasks)
+#     if not found:
+#         response.status_code = 404
+#         return "task not found"
+#     tasks[id - 1] = dict(new_task,id = id)
+#     write_to_file(tasks)
+#     return tasks
 
-@server.delete("/delete/{id}")
-def delete_task(id:int,response: Response,tasks:List = Depends(readTask)):
-    found = check_id(id,tasks)
-    if not found:
-        response.status_code = 404
-        return "task not found"
+# @server.delete("/delete/{id}")
+# def delete_task(id:int,response: Response,tasks:List = Depends(readTask)):
+#     found = check_id(id,tasks)
+#     if not found:
+#         response.status_code = 404
+#         return "task not found"
     
-    for i,task in enumerate(tasks):
-        if task["id"] == id:
-            tasks.pop(i)
-    write_to_file(tasks) 
-    return tasks
+#     for i,task in enumerate(tasks):
+#         if task["id"] == id:
+#             tasks.pop(i)
+#     write_to_file(tasks) 
+#     return tasks
 
 
 # users =[
